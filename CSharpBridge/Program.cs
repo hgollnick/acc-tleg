@@ -21,7 +21,6 @@ class Program
 
         Console.WriteLine($"=== Physics Data ===");
         Console.WriteLine($"Speed: {physics.SpeedKmh} km/h");
-        Console.WriteLine($"SpeedMph: {physics.SpeedMph} mph");
         Console.WriteLine($"Gas/Throttle: {physics.Gas:F3}");
         Console.WriteLine($"Brake: {physics.Brake:F3}");
         Console.WriteLine($"Clutch: {physics.Clutch:F3}");

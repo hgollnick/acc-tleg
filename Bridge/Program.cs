@@ -12,11 +12,45 @@ class Program
 
     static void Main(string[] args)
     {
-        var ac = new AssettoCorsa();
-
-        // WebSocket setup
+        var ac = new AssettoCorsa();        // WebSocket setup
         _websocket = new WebSocket("ws://localhost:8765");
-        _websocket.Connect();
+        _websocket.OnError += (sender, e) => 
+        {
+            Console.WriteLine($"WebSocket Error: {e.Message}");
+            Thread.Sleep(1000);
+            try 
+            {
+                _websocket.Connect();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Reconnection failed: {ex.Message}");
+            }
+        };
+        
+        _websocket.OnClose += (sender, e) =>
+        {
+            Console.WriteLine("WebSocket connection closed. Attempting to reconnect...");
+            Thread.Sleep(1000);
+            try 
+            {
+                _websocket.Connect();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Reconnection failed: {ex.Message}");
+            }
+        };
+
+        try
+        {
+            _websocket.Connect();
+            Console.WriteLine("Connected to WebSocket server");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Initial connection failed: {ex.Message}");
+        }
 
         ac.PhysicsUpdated += Ac_PhysicsUpdated;
         ac.GraphicsUpdated += Ac_GraphicsInterval;
@@ -191,14 +225,25 @@ class Program
         };
 
         SendTelemetryData(data);
-    }
-
-    private static void SendTelemetryData(object data)
+    }    private static void SendTelemetryData(object data)
     {
         try
         {
+            if (_websocket.ReadyState != WebSocketState.Open)
+            {
+                Console.WriteLine("WebSocket is not open. Attempting to reconnect...");
+                try
+                {
+                    _websocket.Connect();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Reconnection failed: {ex.Message}");
+                    return;
+                }
+            }
+
             var json = JsonSerializer.Serialize(data);
-            Console.WriteLine(json);
             _websocket.Send(json);
         }
         catch (Exception ex)

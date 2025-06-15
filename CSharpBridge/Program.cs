@@ -2,11 +2,13 @@
 using System;
 using System.Linq;
 using System.Text.Json;
+using System.Threading;
 using WebSocketSharp;
 
 class Program
 {
     private static WebSocket _websocket;
+    private static ManualResetEvent _quitEvent = new ManualResetEvent(false);
 
     static void Main(string[] args)
     {
@@ -22,8 +24,14 @@ class Program
 
         ac.Start();
 
-        Console.WriteLine("Telemetry streaming started. Press any key to exit...");
-        Console.ReadKey();
+        Console.WriteLine("Telemetry streaming started. Press Ctrl+C to exit...");
+        Console.CancelKeyPress += (sender, eArgs) =>
+        {
+            eArgs.Cancel = true;
+            _quitEvent.Set();
+        };
+
+        _quitEvent.WaitOne();
 
         _websocket.Close();
         ac.Stop();
@@ -82,9 +90,7 @@ class Program
             Timestamp = DateTime.UtcNow
         };
 
-        var json = JsonSerializer.Serialize(data);
-        Console.WriteLine(json);
-        _websocket.Send(json);
+        SendTelemetryData(data);
     }
 
     private static void Ac_GraphicsInterval(object sender, GraphicsEventArgs e)
@@ -146,9 +152,7 @@ class Program
             Timestamp = DateTime.UtcNow
         };
 
-        var json = JsonSerializer.Serialize(data);
-        Console.WriteLine(json);
-        _websocket.Send(json);
+        SendTelemetryData(data);
     }
 
     private static void Ac_StaticInfoUpdated(object sender, StaticInfoEventArgs e)
@@ -186,8 +190,20 @@ class Program
             Timestamp = DateTime.UtcNow
         };
 
-        var json = JsonSerializer.Serialize(data);
-        Console.WriteLine(json);
-        _websocket.Send(json);
+        SendTelemetryData(data);
+    }
+
+    private static void SendTelemetryData(object data)
+    {
+        try
+        {
+            var json = JsonSerializer.Serialize(data);
+            Console.WriteLine(json);
+            _websocket.Send(json);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error sending telemetry data: {ex.Message}");
+        }
     }
 }

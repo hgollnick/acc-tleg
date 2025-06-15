@@ -121,4 +121,4 @@ env.bak/
 venv.bak/
 *.sqlite3
 
-# Jupyter Notebook
+*.json

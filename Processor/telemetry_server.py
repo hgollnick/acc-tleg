@@ -15,10 +15,12 @@ async def handler(websocket, path):
     logging.info(f"Client connected: {client}")
     try:
         async for message in websocket:
-            logging.debug(f"Received message from {client}: {message}")
             try:
                 telemetry = json.loads(message)
-                logging.info(f"Telemetry received from {client}:\n{json.dumps(telemetry, indent=2)}")
+                # Save latest telemetry for dashboard
+                with open("latest_telemetry.json", "w") as f:
+                    json.dump(telemetry, f)
+                logging.debug(f"Telemetry received from {client}")
             except json.JSONDecodeError as e:
                 logging.warning(f"Invalid JSON received from {client}: {e}")
             except Exception as e:
@@ -38,8 +40,8 @@ async def main():
     logging.info("Server started. Awaiting connections...")
     await server.wait_closed()
 
-# Start the event loop
-try:
-    asyncio.run(main())
-except KeyboardInterrupt:
-    logging.info("Server shutdown requested by user.")
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logging.info("Server shutdown requested by user.")

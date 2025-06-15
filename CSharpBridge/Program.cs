@@ -9,7 +9,7 @@ class Program
         var ac = new AssettoCorsa();
         ac.PhysicsUpdated += Ac_PhysicsUpdated;
         ac.StaticInfoUpdated += Ac_StaticInfoUpdated;
-        ac.GraphicsInterval += ac_GraphicsInterval;
+        ac.GraphicsUpdated += Ac_GraphicsInterval;
         ac.Start();
 
         Console.WriteLine("Press any key to exit...");
@@ -141,7 +141,7 @@ class Program
         Console.WriteLine("==================\n");
     }
 
-    private static void ac_GraphicsInterval(object sender, GraphicsEventArgs e)
+    private static void Ac_GraphicsInterval(object sender, GraphicsEventArgs e)
     {
         var graphics = e.Graphics;
 

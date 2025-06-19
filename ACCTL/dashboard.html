@@ -78,7 +78,7 @@
                 }
             });
         }
-        function addData(chart, value) {
+        function addData(chart, value, key, timestamp) {
             const maxPoints = 60;
             const now = new Date().toLocaleTimeString();
             chart.data.labels.push(now);
@@ -97,6 +97,13 @@
                 chart.options.scales.y.max = max + padding;
             }
             chart.update();
+            // Update current value and timestamp display for this chart
+            if (key) {
+                const valueDiv = document.getElementById(key + '-current-value');
+                if (valueDiv) valueDiv.textContent = 'Current: ' + value;
+                const tsDiv = document.getElementById(key + '-current-timestamp');
+                if (tsDiv && timestamp) tsDiv.textContent = 'Timestamp: ' + timestamp;
+            }
         }
         // --- Dynamic chart creation ---
         const physicsCharts = {};
@@ -112,6 +119,17 @@
             canvas.width = 350; canvas.height = 150;
             container.appendChild(title);
             container.appendChild(canvas);
+            // Add current value and timestamp display below the chart
+            const valueDiv = document.createElement('div');
+            valueDiv.id = key + '-current-value';
+            valueDiv.style = 'margin-top:0.5em;color:#ffd700;font-size:1em;';
+            valueDiv.textContent = 'Current: -';
+            container.appendChild(valueDiv);
+            const tsDiv = document.createElement('div');
+            tsDiv.id = key + '-current-timestamp';
+            tsDiv.style = 'color:#aaa;font-size:0.95em;';
+            tsDiv.textContent = 'Timestamp: -';
+            container.appendChild(tsDiv);
             section.appendChild(container);
             const chart = makeChart(canvas.getContext('2d'), key, color);
             chartsObj[key] = chart;
@@ -133,9 +151,16 @@
         const logDiv = document.getElementById('log');
         function log(msg) {
             logDiv.innerHTML = msg + '<br>' + logDiv.innerHTML;
+            // Always scroll to bottom (tail the log)
+            logDiv.scrollTop = logDiv.scrollHeight;
         }
         // --- WebSocket ---
         let ws;
+        let lastPhysicsValue = '-';
+        let lastGraphicsValue = '-';
+        function updateCurrentValue(section, value) {
+            document.getElementById(section + 'CurrentValue').textContent = value;
+        }
         function connect() {
             ws = new WebSocket('ws://localhost:8081/telemetry');
             ws.onopen = () => log('<span style="color:lightgreen">WebSocket connected</span>');
@@ -145,21 +170,31 @@
                 try {
                     const data = JSON.parse(event.data);
                     if (data.Type === 'Physics') {
+                        const ts = data.Timestamp || '-';
+                        let lastVal = '-';
                         Object.entries(data).forEach(([k, v]) => {
                             if (k === 'Type' || k === 'Timestamp') return;
                             if (typeof v === 'number') {
                                 const chart = ensureChart(document.getElementById('physicsCharts'), physicsCharts, k, v);
-                                addData(chart, v);
+                                addData(chart, v, k, ts);
+                                lastVal = v;
                             }
                         });
+                        lastPhysicsValue = lastVal;
+                        updateCurrentValue('physics', lastPhysicsValue);
                     } else if (data.Type === 'Graphics') {
+                        const ts = data.Timestamp || '-';
+                        let lastVal = '-';
                         Object.entries(data).forEach(([k, v]) => {
                             if (k === 'Type' || k === 'Timestamp') return;
                             if (typeof v === 'number') {
                                 const chart = ensureChart(document.getElementById('graphicsCharts'), graphicsCharts, k, v);
-                                addData(chart, v);
+                                addData(chart, v, k, ts);
+                                lastVal = v;
                             }
                         });
+                        lastGraphicsValue = lastVal;
+                        updateCurrentValue('graphics', lastGraphicsValue);
                     } else if (data.Type === 'StaticInfo') {
                         renderStaticInfo(data);
                     }

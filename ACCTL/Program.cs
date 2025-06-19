@@ -110,7 +110,6 @@ class Program
             var data = new
             {
                 Type = "Physics",
-                physics.PacketId,
                 physics.SpeedKmh,
                 physics.Gas,
                 physics.Brake,
@@ -121,39 +120,6 @@ class Program
                 physics.SteerAngle,
                 physics.TC,
                 physics.Abs,
-                physics.TurboBoost,
-                physics.AutoShifterOn,
-                physics.PitLimiterOn,
-                physics.IsAIControlled,
-                physics.Velocity,
-                physics.LocalVelocity,
-                physics.AccG,
-                physics.LocalAngularVelocity,
-                physics.Heading,
-                physics.Pitch,
-                physics.Roll,
-                physics.WheelSlip,
-                physics.WheelPressure,
-                physics.WheelAngularSpeed,
-                physics.BrakeTemp,
-                physics.BreakPressure,
-                physics.TyreCoreTemp,
-                physics.AirTemp,
-                physics.RoadTemp,
-                physics.WaterTemp,
-                physics.FinalFF,
-                physics.KerbVibration,
-                physics.SlipVibrations,
-                physics.GBibrations,
-                physics.ABSVibrations,
-                physics.IgnitionOn,
-                physics.StarterEngineOn,
-                physics.IsEngineRunning,
-                physics.FrontBreakCompound,
-                physics.RearBreakCompount,
-                physics.PadLife,
-                physics.DiscLife,
-                physics.CarDamage,
                 Timestamp = DateTime.UtcNow
             };
             var json = JsonSerializer.Serialize(data);
@@ -227,9 +193,9 @@ class Program
                 graphics.MfdTyrePressureRR,
                 Timestamp = DateTime.UtcNow
             };
-            var json = JsonSerializer.Serialize(data);
-            Console.WriteLine(json);
-            TelemetryWebSocket.BroadcastMessage(json);
+            // var json = JsonSerializer.Serialize(data);
+            // Console.WriteLine(json);
+            // TelemetryWebSocket.BroadcastMessage(json);
         }
         catch (Exception ex)
         {
@@ -274,9 +240,9 @@ class Program
                 s.WetTyresName,
                 Timestamp = DateTime.UtcNow
             };
-            var json = JsonSerializer.Serialize(data);
-            Console.WriteLine(json);
-            TelemetryWebSocket.BroadcastMessage(json);
+            // var json = JsonSerializer.Serialize(data);
+            // Console.WriteLine(json);
+            // TelemetryWebSocket.BroadcastMessage(json);
         }
         catch (Exception ex)
         {

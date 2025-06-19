@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ACC Telemetry Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; background: #181c20; color: #eee; margin: 0; }
+        header { background: #222; padding: 1em; text-align: center; font-size: 2em; }
+        .section { margin: 2em; padding: 1em; background: #23272b; border-radius: 10px; box-shadow: 0 2px 8px #0006; }
+        .section h2 { margin-top: 0; }
+        .charts { display: flex; flex-wrap: wrap; gap: 2em; }
+        .chart-container { min-width: 350px; background: #181c20; border-radius: 10px; padding: 1em; margin-bottom: 1em; }
+        canvas { background: #181c20; }
+        #staticInfoList { display: flex; flex-wrap: wrap; gap: 2em; }
+        .static-info-block { min-width: 300px; background: #181c20; border-radius: 10px; padding: 1em; margin-bottom: 1em; }
+        #log { max-height: 200px; overflow-y: auto; background: #111; padding: 1em; margin: 2em; border-radius: 8px; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+    <header>ACC Telemetry Dashboard</header>
+    <div class="section" id="physicsSection">
+        <h2>Physics</h2>
+        <div class="charts" id="physicsCharts"></div>
+    </div>
+    <div class="section" id="graphicsSection">
+        <h2>Graphics</h2>
+        <div class="charts" id="graphicsCharts"></div>
+    </div>
+    <div class="section" id="staticInfoSection">
+        <h2>Static Info</h2>
+        <div id="staticInfoList"></div>
+    </div>
+    <div id="log"></div>
+    <script>
+        // --- Chart management ---
+        const chartColors = [
+            '#4bc0c0', '#ff6384', '#ffcd56', '#36a2eb', '#9966ff', '#ff9f40', '#c9cbcf', '#e7e9ed', '#8bc34a', '#f44336', '#00bcd4', '#ffc107', '#9c27b0', '#3f51b5', '#009688', '#e91e63', '#607d8b', '#795548', '#ff5722', '#2196f3'
+        ];
+        let colorIdx = 0;
+        function getNextColor() {
+            const color = chartColors[colorIdx % chartColors.length];
+            colorIdx++;
+            return color;
+        }
+        function makeChart(ctx, label, color) {
+            return new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: label,
+                        data: [],
+                        borderColor: color,
+                        backgroundColor: color + '33',
+                        fill: true,
+                        tension: 0.2,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    animation: false,
+                    responsive: false,
+                    scales: {
+                        x: { display: false },
+                        y: {
+                            beginAtZero: false,
+                            ticks: {
+                                autoSkip: true,
+                                maxTicksLimit: 6
+                            },
+                            type: 'linear',
+                            suggestedMin: undefined,
+                            suggestedMax: undefined
+                        }
+                    }
+                }
+            });
+        }
+        function addData(chart, value) {
+            const maxPoints = 60;
+            const now = new Date().toLocaleTimeString();
+            chart.data.labels.push(now);
+            chart.data.datasets[0].data.push(value);
+            if (chart.data.labels.length > maxPoints) {
+                chart.data.labels.shift();
+                chart.data.datasets[0].data.shift();
+            }
+            // Dynamically adjust y-axis scale to fit data
+            const values = chart.data.datasets[0].data;
+            if (values.length > 1) {
+                const min = Math.min(...values);
+                const max = Math.max(...values);
+                const padding = (max - min) * 0.1 || 1;
+                chart.options.scales.y.min = min - padding;
+                chart.options.scales.y.max = max + padding;
+            }
+            chart.update();
+        }
+        // --- Dynamic chart creation ---
+        const physicsCharts = {};
+        const graphicsCharts = {};
+        function ensureChart(section, chartsObj, key, value) {
+            if (chartsObj[key]) return chartsObj[key];
+            const color = getNextColor();
+            const container = document.createElement('div');
+            container.className = 'chart-container';
+            const title = document.createElement('h4');
+            title.textContent = key;
+            const canvas = document.createElement('canvas');
+            canvas.width = 350; canvas.height = 150;
+            container.appendChild(title);
+            container.appendChild(canvas);
+            section.appendChild(container);
+            const chart = makeChart(canvas.getContext('2d'), key, color);
+            chartsObj[key] = chart;
+            return chart;
+        }
+        // --- Static Info rendering ---
+        function renderStaticInfo(data) {
+            const list = document.getElementById('staticInfoList');
+            list.innerHTML = '';
+            Object.entries(data).forEach(([k, v]) => {
+                if (k === 'Type' || k === 'Timestamp') return;
+                const block = document.createElement('div');
+                block.className = 'static-info-block';
+                block.innerHTML = `<b>${k}</b>: <span>${typeof v === 'object' ? JSON.stringify(v) : v}</span>`;
+                list.appendChild(block);
+            });
+        }
+        // --- Logging ---
+        const logDiv = document.getElementById('log');
+        function log(msg) {
+            logDiv.innerHTML = msg + '<br>' + logDiv.innerHTML;
+        }
+        // --- WebSocket ---
+        let ws;
+        function connect() {
+            ws = new WebSocket('ws://localhost:8081/telemetry');
+            ws.onopen = () => log('<span style="color:lightgreen">WebSocket connected</span>');
+            ws.onclose = () => { log('<span style="color:orange">WebSocket disconnected. Reconnecting...</span>'); setTimeout(connect, 2000); };
+            ws.onerror = err => log('<span style="color:red">WebSocket error</span>');
+            ws.onmessage = event => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.Type === 'Physics') {
+                        Object.entries(data).forEach(([k, v]) => {
+                            if (k === 'Type' || k === 'Timestamp') return;
+                            if (typeof v === 'number') {
+                                const chart = ensureChart(document.getElementById('physicsCharts'), physicsCharts, k, v);
+                                addData(chart, v);
+                            }
+                        });
+                    } else if (data.Type === 'Graphics') {
+                        Object.entries(data).forEach(([k, v]) => {
+                            if (k === 'Type' || k === 'Timestamp') return;
+                            if (typeof v === 'number') {
+                                const chart = ensureChart(document.getElementById('graphicsCharts'), graphicsCharts, k, v);
+                                addData(chart, v);
+                            }
+                        });
+                    } else if (data.Type === 'StaticInfo') {
+                        renderStaticInfo(data);
+                    }
+                    log('<span style="color:#aaa">' + event.data + '</span>');
+                } catch (e) {
+                    log('<span style="color:red">Parse error: ' + e + '</span>');
+                }
+            };
+        }
+        connect();
+    </script>
+</body>
+</html>
